@@ -1,51 +1,33 @@
 //
-//  PhotoDetailView.swift
+//  DetailView.swift
 //  phore
 //
-//  Created by Zane on 1/23/23.
+//  Created by Zane on 8/10/24.
 //
 
 import SwiftUI
 import Photos
 
-struct PhotoDetailView: View {
-    @EnvironmentObject var photoLibraryService: PhotoLibraryService
+struct DetailView: View {
+    @EnvironmentObject var library: LibraryService
     @Environment(\.managedObjectContext) var moc
     @Environment(\.colorScheme) var colorScheme
     
-    /// The image view that will render the photo that we'll fetch
-    /// later on. It is set to optional since we don't have an actual
-    /// photo when this scene starts to render. We need to give time
-    /// for the photo library service to fetch a cached copy
-    /// of the photo using the asset id, so we'll set the image with
-    /// the fetching photo at a later time.
-    ///
-    /// Fetching is generally fast, as photos are cached at this
-    /// point. So you don't need to worry about photo rendering.
-    ///
-    /// Also, we would want to free up the image from the memory when
-    /// this view disappears to save up memory.
     @State private var image: Image?
     @State private var asset: PHAsset?
     
-    /// The reference id of the selected photo
-    private var assetLocalId: PhotoLibraryService.PHAssetLocalIdentifier
-    
-    /// Flag that will close the detail view if set to false
+    private var assetLocalId: LibraryService.PHAssetLocalIdentifier
+
     @Binding var showDetailView: Bool
-    @State private var showOverlay: Bool = true
-    
-    // TODO: change this variable after time delay
-    
-    /// Zooming value modifiers that are set by pinching to zoom
-    /// gestures
+    @State private var showOverlay: Bool = true // TODO: change after time delay
     @State private var zoomScale: CGFloat = 1
     @State private var previousZoomScale: CGFloat = 1
+    
     private let minZoomScale: CGFloat = 1
     private let maxZoomScale: CGFloat = 5
     
     init(
-        assetLocalId: PhotoLibraryService.PHAssetLocalIdentifier,
+        assetLocalId: LibraryService.PHAssetLocalIdentifier,
         showDetailView: Binding<Bool>
     ) {
         self.assetLocalId = assetLocalId
@@ -66,22 +48,18 @@ struct PhotoDetailView: View {
                     .ignoresSafeArea()
             }
             
-            // Show the image if it's available
+            // Show image if available
             if let _ = image {
-                photoView
-                    .ignoresSafeArea()
+                photoView.ignoresSafeArea()
             } else {
-                // otherwise, show a spinning progress view
                 ProgressView()
             }
         }
         .onTapGesture {
-            // TODO: probably a better solution here
             withAnimation {
-                showOverlay.toggle()
+                showOverlay.toggle() // TODO: prob a better solution
             }
         }
-        // The toolbar view holds the close button
         .overlay(
             VStack {
                 if self.showOverlay {
@@ -91,14 +69,9 @@ struct PhotoDetailView: View {
                 }
             }
         )
-        // We need to use the task to work on a concurrent request to
-        // load the image from the photo library service, which is an
-        // asynchronous work.
         .task {
             await loadImageAsset()
         }
-        // Finally, when the view disappears, we need to free it up
-        // from the memory
         .onDisappear {
             image = nil
         }
@@ -107,15 +80,9 @@ struct PhotoDetailView: View {
         .toolbar(self.showOverlay ? Visibility.visible : Visibility.hidden, for: .tabBar)
         .navigationTitle(assetCreationDate ?? "")
         .toolbar {
-//            ToolbarItemGroup(placement: .navigation) {
-//                Button(action: { showDetailView = false }) {
-//                    Label("Back", systemImage: "chevron.left")
-//                }
-//            }
             if self.showOverlay {
                 ToolbarItem(placement: .bottomBar) {
                     Button(action: {
-                        /// begin implementing CoreData
 //                        let photo = Photo()
 //                        photo.assetLocalId = assetLocalId
 //                        try? moc.save()
@@ -128,9 +95,9 @@ struct PhotoDetailView: View {
     }
 }
 
-extension PhotoDetailView {
+extension DetailView {
     func loadImageAsset() async {
-        guard let uiImage = try? await photoLibraryService.fetchImage(
+        guard let uiImage = try? await library.fetchImage(
             byLocalIdentifier: assetLocalId
         ) else {
             image = nil
@@ -138,7 +105,7 @@ extension PhotoDetailView {
         }
         image = Image(uiImage: uiImage)
         
-        guard let imageAsset = try? await photoLibraryService.fetchAsset(
+        guard let imageAsset = try? await library.fetchAsset(
             byLocalIdentifier: assetLocalId
         ) else {
             asset = nil
@@ -147,22 +114,21 @@ extension PhotoDetailView {
         asset = imageAsset
     }
     
-    /// Resets the zoom scale back to 1 – the photo scale at 1x zoom
+    // Resets the zoom scale back to 1
     func resetImageState() {
         withAnimation(.interactiveSpring()) {
             zoomScale = 1
         }
     }
-
-    /// On double tap
+    
     func onImageDoubleTapped() {
-        /// Zoom the photo to 5x scale if the photo isn't zoomed in
+        // Zoom photo to 5x scale if not zoomed in
+        // Otherwise reset to 1x
         if zoomScale == 1 {
             withAnimation(.spring()) {
                 zoomScale = 5
             }
         } else {
-            /// Otherwise, reset the photo zoom to 1x
             resetImageState()
         }
     }
@@ -172,7 +138,7 @@ extension PhotoDetailView {
             let delta = value / previousZoomScale
             previousZoomScale = value
             let zoomDelta = zoomScale * delta
-            var minMaxScale = max(minZoomScale, zoomDelta)
+            var minMaxScale = min(maxZoomScale, zoomDelta)
             minMaxScale = min(maxZoomScale, minMaxScale)
             zoomScale = minMaxScale
         }
@@ -203,10 +169,8 @@ extension PhotoDetailView {
     
     var photoView: some View {
         GeometryReader { proxy in
-            // Wrap the image with a scroll view.
-            // Doing so would limit the photo scroll within the
-            // bounds of the scroll view, but will still have
-            // the same functionality of adding pan gesture support.
+            // Wrap image in ScrollView
+            // Limits scroll to within bounds but keeps pan/gesture support
             ScrollView(
                 [.vertical, .horizontal],
                 showsIndicators: false
@@ -231,10 +195,11 @@ extension PhotoDetailView {
                 Button(action: { showDetailView = false }) {
                     Label("Back", systemImage: "chevron.left")
                         .labelStyle(.iconOnly)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        // TODO: (maybe) remove extra tap targets caused by maxWidth: .infinity
+                        .frame(maxWidth: .infinity, alignment: .leading) // TODO: (maybe) remove extra tap targets caused by maxWidth: .infinity
                 }
+                
                 Spacer()
+                
                 VStack {
                     Text(assetCreationDate ?? "")
                         .font(.subheadline)
@@ -244,7 +209,9 @@ extension PhotoDetailView {
                         .lineLimit(1)
                 }
                     .frame(maxWidth: .infinity)
+                
                 Spacer()
+                
                 Link(destination: URL(string: "photos-redirect://")!) {
                     Label("Open in Photos", systemImage: "square.and.arrow.up")
                         .labelStyle(.iconOnly)
@@ -273,14 +240,6 @@ extension PhotoDetailView {
     }
 }
 
-struct PhotoDetailView_Previews: PreviewProvider {
-    static var previews: some View {
-//        ZStack {
-//            Text("example")
-//        }
-//        .overlay(
-//            PhotoDetailView.toolbarView
-//        )
-        PhotoDetailView(assetLocalId: "", showDetailView: .constant(true))
-    }
+#Preview {
+    DetailView(assetLocalId: "", showDetailView: .constant(true))
 }

@@ -2,27 +2,19 @@
 //  phoreApp.swift
 //  phore
 //
-//  Created by Zane on 1/23/23.
+//  Created by Zane on 8/10/24.
 //
 
 import SwiftUI
 
 @main
 struct phoreApp: App {
-    @Environment(\.scenePhase) var scenePhase
-    
-    @StateObject private var persistenceController = PersistenceController.shared
-    
-    let photoLibraryService = PhotoLibraryService()
+    var library = LibraryService()
     
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .environmentObject(photoLibraryService)
+                .environmentObject(library)
         }
-            .onChange(of: scenePhase) { _ in
-                persistenceController.save()
-            }
     }
 }
