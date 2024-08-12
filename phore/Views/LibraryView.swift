@@ -42,12 +42,14 @@ extension LibraryView {
     
     var libraryView: some View {
         ScrollView {
+            // TODO: potentially replace with List for performance benefit
+            // https://x.com/johnestropia/status/1353517294538776577
             LazyVGrid(
-                // 3-column row with adaptive width of 100 for each grid item
+                // 5-column row with adaptive width of 100 for each grid item
                 // 1px space between columns and rows
                 columns: Array(
                     repeating: .init(.adaptive(minimum: 100), spacing: 1), 
-                    count: 3
+                    count: 5
                 ),
                 spacing: 1
             ) {
