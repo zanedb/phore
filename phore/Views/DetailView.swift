@@ -55,11 +55,6 @@ struct DetailView: View {
                 ProgressView()
             }
         }
-        .onTapGesture {
-            withAnimation {
-                showOverlay.toggle() // TODO: prob a better solution
-            }
-        }
         .overlay(
             VStack {
                 if self.showOverlay {
@@ -133,6 +128,12 @@ extension DetailView {
         }
     }
     
+    func onImageTapped() {
+        withAnimation {
+            showOverlay.toggle()
+        }
+    }
+    
     func onZoomGestureStarted(value: MagnificationGesture.Value) {
         withAnimation(.easeIn(duration: 0.1)) {
             let delta = value / previousZoomScale
@@ -179,6 +180,7 @@ extension DetailView {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .onTapGesture(count: 2, perform: onImageDoubleTapped)
+                    .onTapGesture(count: 1, perform: onImageTapped)
                     .gesture(zoomGesture)
                     .frame(width: proxy.size.width * max(minZoomScale, zoomScale))
                     .frame(maxHeight: .infinity)
@@ -188,7 +190,6 @@ extension DetailView {
     
     var toolbarView: some View {
         ZStack {
-            // TODO: fix how this looks in light mode
             VisualEffectView(effect: UIBlurEffect(style: colorScheme == .dark ? .dark : .light))
                 .edgesIgnoringSafeArea(.top)
             HStack {
