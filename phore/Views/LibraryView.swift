@@ -63,6 +63,7 @@ extension LibraryView {
                 }
             }
         }
+            .defaultScrollAnchor(.bottom)
     }
     
     var detailView: some View {
